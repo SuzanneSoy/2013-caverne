@@ -14,8 +14,75 @@ function loadSprites(fileNames, callback) {
 	$.when.apply($, loaders).done(function() { callback(sprites); });
 }
 
+// Type System
+
+var Type = {
+	Void: function() {
+		return {
+			primitive: "void",
+			match: function(value) { return value.primitive == this.primitive; },
+		};
+	},
+	Unit: function() {
+		return {
+			primitive: "unit",
+			match: function(value) { return value.primitive == this.primitive; },
+		};
+	},
+	Int: function() {
+		return {
+			primitive: "int",
+			match: function(value) { return value.primitive == this.primitive; }
+		};
+	},
+	Struct: function(fields) { // Type.Struct({ a: Type.Int(), b: Type.Unit(), c: ... })
+		return {
+			primitive: "struct",
+			fields: fields,
+			match: function(value) {
+				if (value.primitive != this.primitive) { return false; }
+				for (f in this.fields) { if (!this.fields[f].match(value.fields[f])) { return false; } }
+				for (f in value.fields) { if (!this.fields[f]) { return false; } } // Check `value` doesn't have extra fields.
+				return true;
+			},
+		};
+	},
+	Function: function(parameterTypes, returnType) { // Type.Function([Type.Int(), Type.Int()], Type.Int())
+		return {
+			primitive: "function",
+			parameterTypes: parameterTypes,
+			returnType: returnType,
+			match: function(value) {
+				if (value.primitive != this.primitive) { return false; }
+				if (!this.returnType.match(value.returnType)) { return false; }
+				if (this.parameterTypes.length != value.parameterTypes.length) { return false; }
+				for (var i = 0; i < this.parameterTypes; i++) {
+					if (!this.parameterTypes[i].match(value.parameterTypes[i])) { return false; }
+				}
+				return true;
+			}
+		};
+	},
+	Either: function(taggedUnion) { // Type.Either({ something: Type.SomeType(...), nothing: Type.Unit()});
+		return {
+			primitive: "either",
+			taggedUnion: taggedUnion,
+			match: function(value) {
+				if (value.primitive != this.primitive) { return false; }
+				if (!this.taggedUnion[value.tag]) { return false; }
+				return this.taggedUnion[value.tag].match(value.value);
+			}
+		};
+	},
+};
+
+var maybeCell = Type.Either({ cell: Type.Int(), nothing: Type.Unit() });
+var cellValue = { primitive: "int", value: 42 };
+var maybeCellValue = { primitive: "either", tag: "cell", value: cellValue };
+
 // TODO :
-// Type system
+// Type system (WIP)
+// Pattern matching (maybe I sould separate that from the type system? Or maybe not?)
 // Grid cells with {floor: new Floor(), actor: new Actor()}
 //   where Floor has 4 "push" input/output directions, 4 input directions and 4 output directions.
 // Grid pattern matching? (using the i/o paths that the floor tiles construct)?
