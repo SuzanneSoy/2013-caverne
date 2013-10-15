@@ -14,39 +14,11 @@ function loadSprites(fileNames, callback) {
 	$.when.apply($, loaders).done(function() { callback(sprites); });
 }
 
-// $(function() {
-// 	var canvas = document.getElementById('canvas');
-//     var c = canvas.getContext('2d');
-// 	c.fillStyle = 'black';
-// 	c.fillRect(0,0,16,16);
-
-// 	loadSprites({
-// 		f: "img/floor.png",
-// 		g: "img/grass.png",
-// 		h: "img/hole.png",
-// 		s: "img/sand.png",
-// 		w: "img/wall.png",
-// 	}, function(sprites) {
-// 		x = 0;
-// 		y = 0;
-// 		$.each(sprites, function(name, sprite) {
-// 			c.drawImage(sprite,x,y);
-// 			x += 16;
-// 		});
-// 		//
-// 	});
-// });
-
-
-// Concepts:
-// Actor ?
-// Object(s) in grid cell (= grid cell "state")
-// Sprite (grid cell + neighborhood are used to choose a cell, for example draw a "border" when the sprite's neighbor's state is different).
-
-// Concepts2:
-// Grid (2d-array of stuff), later: grid+paths/zones along which objects can move. Paths are drawn between the centers of two grid cells.
-// Tile (image)
-// Rule (includes a pattern, and a substitute(?))
+// TODO :
+// Type system
+// Grid cells with {floor: new Floor(), actor: new Actor()}
+//   where Floor has 4 "push" input/output directions, 4 input directions and 4 output directions.
+// Grid pattern matching? (using the i/o paths that the floor tiles construct)?
 
 function Position(x, y) {
 	this.x = x;
@@ -264,3 +236,13 @@ $(function() {
 		});
 	});
 });
+
+// Concepts:
+// Actor ?
+// Object(s) in grid cell (= grid cell "state")
+// Sprite (grid cell + neighborhood are used to choose a cell, for example draw a "border" when the sprite's neighbor's state is different).
+
+// Concepts2:
+// Grid (2d-array of stuff), later: grid+paths/zones along which objects can move. Paths are drawn between the centers of two grid cells.
+// Tile (image)
+// Rule (includes a pattern, and a substitute(?))
