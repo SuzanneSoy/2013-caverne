@@ -17,72 +17,113 @@ function loadSprites(fileNames, callback) {
 // Type System
 
 var Type = {
-	Void: function() {
-		return {
-			primitive: "void",
-			match: function(value) { return value.primitive == this.primitive; },
-		};
-	},
-	Unit: function() {
-		return {
-			primitive: "unit",
-			match: function(value) { return value.primitive == this.primitive; },
-		};
-	},
-	Int: function() {
-		return {
-			primitive: "int",
-			match: function(value) { return value.primitive == this.primitive; }
-		};
-	},
+	Void: function() { return { primitive: "Void" }; },
+	Unit: function() { return { primitive: "Unit" }; },
+	Int: function() { return { primitive: "Int" }; },
 	Struct: function(fields) { // Type.Struct({ a: Type.Int(), b: Type.Unit(), c: ... })
 		return {
-			primitive: "struct",
+			primitive: "Struct",
 			fields: fields,
-			match: function(value) {
-				if (value.primitive != this.primitive) { return false; }
-				for (f in this.fields) { if (!this.fields[f].match(value.fields[f])) { return false; } }
-				for (f in value.fields) { if (!this.fields[f]) { return false; } } // Check `value` doesn't have extra fields.
-				return true;
-			},
 		};
 	},
 	Function: function(parameterTypes, returnType) { // Type.Function([Type.Int(), Type.Int()], Type.Int())
 		return {
-			primitive: "function",
+			primitive: "Function",
 			parameterTypes: parameterTypes,
 			returnType: returnType,
-			match: function(value) {
-				if (value.primitive != this.primitive) { return false; }
-				if (!this.returnType.match(value.returnType)) { return false; }
-				if (this.parameterTypes.length != value.parameterTypes.length) { return false; }
-				for (var i = 0; i < this.parameterTypes; i++) {
-					if (!this.parameterTypes[i].match(value.parameterTypes[i])) { return false; }
-				}
-				return true;
-			}
 		};
 	},
 	Either: function(taggedUnion) { // Type.Either({ something: Type.SomeType(...), nothing: Type.Unit()});
 		return {
-			primitive: "either",
+			primitive: "Either",
 			taggedUnion: taggedUnion,
-			match: function(value) {
-				if (value.primitive != this.primitive) { return false; }
-				if (!this.taggedUnion[value.tag]) { return false; }
-				return this.taggedUnion[value.tag].match(value.value);
-			}
 		};
 	},
 };
 
-var maybeCell = Type.Either({ cell: Type.Int(), nothing: Type.Unit() });
-var cellValue = { primitive: "int", value: 42 };
-var maybeCellValue = { primitive: "either", tag: "cell", value: cellValue };
+var Pattern = {
+	Any: function() { return function(value) { return true; }; },
+	Void: function() { return function(value) { return false; }; }, // Void can never have a value.
+	Predicate: function(predicate) { return predicate; },
+	Unit: function() { return function(value) { return value.primitive == "Unit"; }; },
+	AnyInt: function() { return function(value) { return value.primitive == "Int"; }; },
+	Int: function(intValue) { return function(value) { return value.primitive == "Int" && value.value == intValue; }; },
+	Struct: function(fields) { // Pattern.Struct({ a: Pattern.Int(), b: Pattern.Unit(), c: ... })
+		return function(value) {
+			if (value.primitive != "Struct") { return false; }
+			for (f in fields) { if (!fields[f](value.fields[f])) { return false; } }
+			for (f in value.fields) { if (!fields[f]) { return false; } } // Check `value` doesn't have extra fields.
+			return true;
+		};
+	},
+	Function: function(parameterTypes, returnType) { // Pattern.Function([Pattern.Int(), Pattern.Int()], Pattern.Int())
+		return function(value) {
+			if (value.primitive != "Function") { return false; }
+			if (!returnType(value.returnType)) { return false; }
+			if (parameterTypes.length != value.parameterTypes.length) { return false; }
+			for (var i = 0; i < parameterTypes; i++) {
+				if (!parameterTypes[i](value.parameterTypes[i])) { return false; }
+			}
+			return true;
+		};
+	},
+	Either: function(taggedUnion) { // Pattern.Either({ something: Pattern.SomeType(...), nothing: Pattern.Unit()});
+		return function(value) {
+			if (value.primitive != "Either") { return false; }
+			if (!taggedUnion[value.tag]) { return false; }
+			return taggedUnion[value.tag](value.value);
+		};
+	},
+	OneOf: function(untaggedUnion) {
+		return function(value) {
+			for (i = 0; i < untaggedUnion.length; i++) {
+				if (untaggedUnion[i](value)) {
+					return true;
+				}
+			}
+			return false;
+		}
+	},
+};
+
+var Value = {
+	// Void can't ever have a value.
+	Unit: function() { return { primitive: "Unit" }; },
+	Int: function(value) { return { primitive: "Int", value: value }; },
+	Struct: function(fields) { // Value.Struct({ a: Value.Int(42), b: Value.Unit(), c: ... })
+		return {
+			primitive: "Struct",
+			fields: fields,
+		};
+	},
+	Function: function(parameterTypes, returnType, body) { // Value.Function([Type.Int(), Type.Int()], Type.Int(), body)
+		return {
+			primitive: "Function",
+			parameterTypes: parameterTypes,
+			returnType: returnType,
+			body: body,
+		};
+	},
+	Either: function(tag, value) { // Value.Either("something", Value.SomeType(...));
+		return {
+			primitive: "Either",
+			tag: tag,
+			value: value,
+		};
+	},
+};
+
+var maybeCellType = Type.Either({ cell: Type.Int(), nothing: Type.Unit() });
+var maybeCellPattern = Pattern.Either({ cell: Pattern.AnyInt(), nothing: Pattern.Unit() });
+var cellValue = Value.Int(42);
+var maybeCellValue = Value.Either("cell", cellValue);
+if (console) {
+	console.log(maybeCellPattern(cellValue));
+	console.log(maybeCellPattern(maybeCellValue));
+}
 
 // TODO :
-// Type system (WIP)
-// Pattern matching (maybe I sould separate that from the type system? Or maybe not?)
+// Type system: Types, Pattern matching and Values (WIP)
 // Grid cells with {floor: new Floor(), actor: new Actor()}
 //   where Floor has 4 "push" input/output directions, 4 input directions and 4 output directions.
 // Grid pattern matching? (using the i/o paths that the floor tiles construct)?
