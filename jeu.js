@@ -17,6 +17,7 @@ function loadSprites(fileNames, callback) {
 // Type System
 
 var Type = {
+	// Primitive types
 	Void: function() { return { primitive: "Void" }; },
 	Unit: function() { return { primitive: "Unit" }; },
 	Int: function() { return { primitive: "Int" }; },
@@ -33,12 +34,41 @@ var Type = {
 			returnType: returnType,
 		};
 	},
-	Either: function(taggedUnion) { // Type.Either({ something: Type.SomeType(...), nothing: Type.Unit()});
+	Either: function(taggedUnion) { // Type.Either({ something: Type.SomeType(...), nothing: Type.Unit() });
 		return {
 			primitive: "Either",
 			taggedUnion: taggedUnion,
 		};
 	},
+	Map: function(fromName, fromType, toName, toType) {
+		return {
+			primitive: "Map",
+			fromName: fromName,
+			fromType: fromType,
+			toName: toName,
+			toType: toType,
+		};
+	},
+	// User-defined types
+	Maybe: function(type) {
+		return Type.Either({
+			something: type,
+			nothing: Type.Unit()
+		});
+	},
+	Enum: function(symbols) {
+		var assoc = {}
+		for (var i = 0; i < symbols.length; i++) {
+			assoc[i] = Type.Unit();
+		}
+		return Pattern.Either(assoc);
+	},
+	Boolean: function() {
+		return Type.Enum([
+			'true',
+			'false'
+		]);
+	}
 };
 
 var Pattern = {
@@ -84,6 +114,13 @@ var Pattern = {
 			return false;
 		}
 	},
+	// User-defined patterns
+	Maybe: function(pattern) {
+		return Pattern.OneOf([
+			pattern,
+			Pattern.Unit()
+		]);
+	},
 };
 
 var Value = {
@@ -113,20 +150,75 @@ var Value = {
 	},
 };
 
-var maybeCellType = Type.Either({ cell: Type.Int(), nothing: Type.Unit() });
-var maybeCellPattern = Pattern.Either({ cell: Pattern.AnyInt(), nothing: Pattern.Unit() });
-var cellValue = Value.Int(42);
-var maybeCellValue = Value.Either("cell", cellValue);
-if (console) {
-	console.log(maybeCellPattern(cellValue));
-	console.log(maybeCellPattern(maybeCellValue));
-}
+(function() {
+	var maybeCellType = Type.Maybe(Type.Int());
+	var maybeCellPattern = Pattern.Maybe(Pattern.AnyInt());
+	var cellValue = Value.Int(42);
+	var eitherCellPattern = Pattern.Either({ cell: Pattern.AnyInt(), foobar: Pattern.AnyInt() });
+	var eitherCellValue = Value.Either("cell", cellValue);
+	if (console) {
+		console.log(true, maybeCellPattern(cellValue));
+		console.log(false, maybeCellPattern(eitherCellValue));
+		console.log(true, eitherCellPattern(eitherCellValue));
+	}
+})();
 
-// TODO :
-// Type system: Types, Pattern matching and Values (WIP)
+// DONE :
+// Type system: Types, Pattern matching and Values
 // Grid cells with {floor: new Floor(), actor: new Actor()}
 //   where Floor has 4 "push" input/output directions, 4 input directions and 4 output directions.
-// Grid pattern matching? (using the i/o paths that the floor tiles construct)?
+// TODO :
+// Type system:
+//   creating patterns from types,
+//   verifying if a value is of the given type,
+//   verifying if a pattern is matches against values of the given type.
+// Type system:
+//   Maybe, Either and OrElse have slightly different meanings.
+//   Display types, values and patterns.
+// Grid pattern matching:
+//   using relative up/right/down/left grid positions, and absolute coordinates
+//   Then, using the i/o paths that the floor tiles construct
+// TODO: the i/o paths we currently have do not allow for teleports.
+
+var GameType = {};
+
+GameType.Direction = Type.Enum([
+	'up',
+	'down',
+	'left',
+	'right',
+]);
+
+GameType.FloorTile = Type.Enum([
+	'floor',
+	'grass',
+	'hole',
+	'sand',
+	'wall',
+	'filledhole',
+]);
+
+GameType.Floor = Type.Struct({
+	tile: GameType.FloorTile,
+	push: Type.Map('in', GameType.Direction, 'out', GameType.Direction),
+	allowedIn: Type.Map('in', GameType.Direction, 'allowed', Type.Boolean()),
+	allowedOut: Type.Map('out', GameType.Direction, 'allowed', Type.Boolean()),
+});
+
+GameType.TriggerTile = Type.Enum([
+	'end',
+]);
+
+GameType.ActorTile = Type.Enum([
+	'player',
+	'block',
+]);
+
+GameType.Cell    = Type.Struct({
+	floor: GameType.Floor,
+	trigger: Type.Maybe(GameType.Trigger),
+	actor: Type.Maybe(GameType.Actor),
+});
 
 function Position(x, y) {
 	this.x = x;
