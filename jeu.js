@@ -150,6 +150,7 @@ var Value = {
 	},
 };
 
+// Test
 (function() {
 	var maybeCellType = Type.Maybe(Type.Int());
 	var maybeCellPattern = Pattern.Maybe(Pattern.AnyInt());
@@ -167,13 +168,14 @@ var Value = {
 // Type system: Types, Pattern matching and Values
 // Grid cells with {floor: new Floor(), actor: new Actor()}
 //   where Floor has 4 "push" input/output directions, 4 input directions and 4 output directions.
+// 
 // TODO :
 // Type system:
 //   creating patterns from types,
 //   verifying if a value is of the given type,
 //   verifying if a pattern is matches against values of the given type.
 // Type system:
-//   Maybe, Either and OrElse have slightly different meanings.
+//   Maybe, Either and OrElse have slightly different meanings in types/patterns/values.
 //   Display types, values and patterns.
 // Grid pattern matching:
 //   using relative up/right/down/left grid positions, and absolute coordinates
@@ -188,6 +190,11 @@ GameType.Direction = Type.Enum([
 	'left',
 	'right',
 ]);
+
+GameType.Position = Type.Struct({
+	x: Type.Int(),
+	y: Type.Int(),
+});
 
 GameType.FloorTile = Type.Enum([
 	'floor',
@@ -214,11 +221,20 @@ GameType.ActorTile = Type.Enum([
 	'block',
 ]);
 
-GameType.Cell    = Type.Struct({
+GameType.Cell = Type.Struct({
 	floor: GameType.Floor,
 	trigger: Type.Maybe(GameType.Trigger),
 	actor: Type.Maybe(GameType.Actor),
 });
+
+GamePattern = {};
+
+GamePattern.AnchoredCell = function(cellPattern, positionPattern) {
+};
+
+GamePattern.Subgrid = function(subgrid) { // subgrid = Array(Array(Either(GamePattern.Cell, GamePattern.AnchoredCell)))
+	
+};
 
 function Position(x, y) {
 	this.x = x;
